@@ -52,7 +52,7 @@ export default function AIStatus({ messages, currentModel, showShortcuts = true 
               <span className="text-sm font-medium">Keyboard Shortcuts</span>
             </div>
             <div className="space-y-2">
-              {KEYBOARD_SHORTCUTS.map(({ key, description }, index) => (
+              {KEYBOARD_SHORTCUTS.map(({ key, description }) => (
                 <div key={key} className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">{description}</span>
                   <kbd className="px-2 py-1 bg-dark rounded text-luxury-gold border border-luxury-gold/20 text-xs">

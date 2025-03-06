@@ -3,6 +3,7 @@ import { generateScript } from '@/lib/ai';
 import { getVideoTranscript } from '@/lib/youtube';
 import prisma from '@/lib/prisma';
 import { handlePrismaError } from '@/lib/errors';
+import { generateScriptHash } from '@/utils/hash';
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,7 +16,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create or get default user
     try {
       const user = await prisma.user.upsert({
         where: {
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
       }
 
       const content = await generateScript(topic, transcript);
+      const hash = generateScriptHash();
 
       const script = await prisma.script.create({
         data: {
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
           youtubeUrl: typeof youtubeUrl === 'string' ? youtubeUrl : null,
           transcript: transcript ?? null,
           userId: user.id,
+          hash,
         },
       });
 

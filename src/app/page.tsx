@@ -1,7 +1,8 @@
 'use client';
 
-import { FormEvent } from 'react';
-import { ArrowPathIcon, SparklesIcon, BeakerIcon, DocumentTextIcon, VideoCameraIcon, ClipboardIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
+import { FormEvent, useState } from 'react';
+import { ArrowPathIcon, SparklesIcon, BeakerIcon, DocumentTextIcon, VideoCameraIcon, ClipboardIcon, ClipboardDocumentCheckIcon, ShareIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
 import type { Script } from '@/types';
 import AIStatus from '@/components/AIStatus';
 import ModelInfo from '@/components/ModelInfo';
@@ -30,6 +31,9 @@ export default function Home() {
   const [agentStatus, setAgentStatus] = useState<string[]>([]);
   const [currentModel, setCurrentModel] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const [isShareToastVisible, setIsShareToastVisible] = useState(false);
+
+  const router = useRouter();
 
   const updateStatus = (message: string) => {
     setAgentStatus(prev => [...prev, message]);
@@ -119,6 +123,24 @@ export default function Home() {
     } catch (err) {
       console.error('Failed to copy script:', err);
     }
+  };
+
+  const shareScript = async () => {
+    if (!script?.hash) return;
+    
+    try {
+      const shareUrl = `${window.location.origin}/script/${script.hash}`;
+      await navigator.clipboard.writeText(shareUrl);
+      setIsShareToastVisible(true);
+      setTimeout(() => setIsShareToastVisible(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy share link:', err);
+    }
+  };
+
+  const viewScript = () => {
+    if (!script?.hash) return;
+    router.push(`/script/${script.hash}`);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -258,22 +280,37 @@ export default function Home() {
             ) : script && (
               <div className="space-y-4 md:space-y-6 bg-dark-secondary/50 backdrop-blur-sm p-4 md:p-8 rounded-2xl border border-luxury-gold/20 shadow-xl">
                 <div className="flex items-center justify-between gap-4">
-                  <h2 className="text-xl md:text-2xl font-playfair font-semibold text-luxury-gold">{script.title}</h2>
-                  <button
-                    onClick={copyToClipboard}
-                    className="p-2 hover:bg-luxury-gold/5 rounded-lg transition-colors group relative"
-                    title="Copy script to clipboard (Ctrl+Alt+C)"
-                  >
-                    {isCopied ? (
-                      <ClipboardDocumentCheckIcon className="w-5 h-5 text-green-400" />
-                    ) : (
-                      <ClipboardIcon className="w-5 h-5 text-luxury-gold/70 group-hover:text-luxury-gold" />
-                    )}
-                    <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-dark-secondary/90 rounded whitespace-nowrap">
-                      Copy (Ctrl+Alt+C)
-                    </span>
-                  </button>
+                  <h2 className="text-xl md:text-2xl font-playfair font-semibold text-luxury-gold">
+                    {script.title}
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={shareScript}
+                      className="p-2 hover:bg-luxury-gold/5 rounded-lg transition-colors group relative"
+                      title="Share script"
+                    >
+                      <ShareIcon className="w-5 h-5 text-luxury-gold/70 group-hover:text-luxury-gold" />
+                      <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-dark-secondary/90 rounded whitespace-nowrap">
+                        Share script
+                      </span>
+                    </button>
+                    <button
+                      onClick={copyToClipboard}
+                      className="p-2 hover:bg-luxury-gold/5 rounded-lg transition-colors group relative"
+                      title="Copy script to clipboard (Ctrl+Alt+C)"
+                    >
+                      {isCopied ? (
+                        <ClipboardDocumentCheckIcon className="w-5 h-5 text-green-400" />
+                      ) : (
+                        <ClipboardIcon className="w-5 h-5 text-luxury-gold/70 group-hover:text-luxury-gold" />
+                      )}
+                      <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-dark-secondary/90 rounded whitespace-nowrap">
+                        Copy (Ctrl+Alt+C)
+                      </span>
+                    </button>
+                  </div>
                 </div>
+                
                 <div className="prose prose-invert max-w-none">
                   <pre className="whitespace-pre-wrap font-sans text-base md:text-lg leading-relaxed bg-dark/50 p-4 md:p-6 rounded-xl">
                     {script.enhancedScript || script.content}
@@ -315,6 +352,7 @@ export default function Home() {
         </div>
       </div>
       <Toast message="Script copied to clipboard!" isVisible={isCopied} />
+      <Toast message="Share link copied!" isVisible={isShareToastVisible} />
     </main>
   );
 }

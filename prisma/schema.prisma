@@ -33,4 +33,7 @@ model Script {
   user          User      @relation(fields: [userId], references: [id])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  hash          String    @unique
+
+  @@index([hash])
 }

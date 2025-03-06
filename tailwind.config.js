@@ -24,6 +24,7 @@ module.exports = {
         'gradient': 'gradient 8s linear infinite',
         'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'loading-dot': 'loading-dot 1s ease-in-out infinite',
+        'fade-in': 'fade-in 0.5s ease-out forwards',
       },
       keyframes: {
         gradient: {
@@ -46,6 +47,16 @@ module.exports = {
             transform: 'scale(1)',
           },
         },
+        'fade-in': {
+          '0%': {
+            opacity: '0',
+            transform: 'translateY(10px)',
+          },
+          '100%': {
+            opacity: '1',
+            transform: 'translateY(0)',
+          },
+        },
       },
       backgroundImage: {
         'gradient-luxury': 'linear-gradient(45deg, #2563EB, #800080, #FFD700)',
@@ -53,6 +64,17 @@ module.exports = {
       },
       typography: (theme) => ({
         DEFAULT: {
+          css: {
+            color: theme('colors.gray.900'),
+            a: {
+              color: theme('colors.luxury.gold'),
+              '&:hover': {
+                color: theme('colors.luxury.silver'),
+              },
+            },
+          },
+        },
+        invert: {
           css: {
             color: theme('colors.gray.300'),
             a: {
@@ -64,6 +86,12 @@ module.exports = {
           },
         },
       }),
+      transitionProperty: {
+        'colors': 'color, background-color, border-color, text-decoration-color, fill, stroke',
+      },
+      transitionDuration: {
+        '2000': '2000ms',
+      },
     },
   },
   plugins: [
