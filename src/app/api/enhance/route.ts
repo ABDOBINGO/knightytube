@@ -6,15 +6,19 @@ export async function POST(req: NextRequest) {
   try {
     const { scriptId } = await req.json();
 
-    const script = await prisma.script.findUnique({
+    if (!scriptId) {
+      return NextResponse.json({ error: 'Script ID is required' }, { status: 400 });
+    }
+
+    const existingScript = await prisma.script.findUnique({
       where: { id: scriptId },
     });
 
-    if (!script) {
+    if (!existingScript) {
       return NextResponse.json({ error: 'Script not found' }, { status: 404 });
     }
 
-    const enhancedContent = await enhanceScript(script.content);
+    const enhancedContent = await enhanceScript(existingScript.content);
 
     const updatedScript = await prisma.script.update({
       where: { id: scriptId },
@@ -22,7 +26,11 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ script: updatedScript });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('Error enhancing script:', error);
+    return NextResponse.json(
+      { error: 'Failed to enhance script' },
+      { status: 500 }
+    );
   }
 }

@@ -1,15 +1,26 @@
 import { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
-let prisma: PrismaClient;
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
 
-if (process.env.NODE_ENV === 'production') {
-  prisma = new PrismaClient();
-} else {
-  // Prevent multiple instances of Prisma Client in development
-  if (!(global as any).prisma) {
-    (global as any).prisma = new PrismaClient();
-  }
-  prisma = (global as any).prisma;
+const prismaClientOptions = {
+  log: ['error', 'warn'],
+  errorFormat: 'pretty',
+};
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient(prismaClientOptions);
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
 }
+prisma.$use(async (params: Prisma.MiddlewareParams, next: Prisma.Middleware) => {
+  const before = Date.now();
+  const result = await next(params);
+  const after = Date.now();
+  console.log(`Query ${params.model}.${params.action} took ${after - before}ms`);
+  return result;
+});
 
 export default prisma;

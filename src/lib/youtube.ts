@@ -1,42 +1,71 @@
 import { google } from 'googleapis';
-import axios from 'axios';
 
-const youtube = google.youtube('v3');
+const youtube = google.youtube({
+  version: 'v3',
+  auth: process.env.YOUTUBE_API_KEY
+});
 
-export async function getVideoTranscript(videoUrl: string) {
+export async function getVideoTranscript(videoUrl: string): Promise<string> {
   try {
     // Extract video ID from URL
-    const videoId = videoUrl.match(/(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/)?.[1];
-    
+    const videoId = extractVideoId(videoUrl);
     if (!videoId) {
       throw new Error('Invalid YouTube URL');
     }
 
-    // Get captions for the video
-    const response = await youtube.captions.list({
-      key: process.env.YOUTUBE_API_KEY,
+    // Get video captions
+    const captionsResponse = await youtube.captions.list({
       part: ['snippet'],
-      videoId,
+      videoId: videoId
     });
 
-    if (!response.data.items?.length) {
+    const captions = captionsResponse.data.items;
+    if (!captions || captions.length === 0) {
       throw new Error('No captions found for this video');
     }
 
-    // Get the first available caption track (usually the auto-generated one)
-    const captionId = response.data.items[0].id;
-
-    // Download the transcript
+    // Get the first available caption track (usually auto-generated)
+    const captionId = captions[0].id;
+    
+    // Download caption track
     const transcriptResponse = await youtube.captions.download({
-      key: process.env.YOUTUBE_API_KEY,
-      id: captionId!,
+      id: captionId!
     });
 
-    return transcriptResponse.data;
+    // Process and clean up the transcript
+    let transcript = transcriptResponse.data as string;
+    transcript = cleanTranscript(transcript);
+
+    return transcript;
   } catch (error) {
     console.error('Error fetching transcript:', error);
-    throw error;
+    throw new Error('Failed to fetch video transcript');
   }
+}
+
+function extractVideoId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i,
+    /^[a-zA-Z0-9_-]{11}$/
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+
+  return null;
+}
+
+function cleanTranscript(transcript: string): string {
+  // Remove timestamps and other formatting
+  return transcript
+    .replace(/\[\w+\]|\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}/g, '')
+    .split('\n')
+    .filter(line => line.trim())
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export async function getVideoDetails(videoUrl: string) {
