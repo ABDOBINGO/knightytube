@@ -1,37 +1,37 @@
 import { Prisma } from '@prisma/client';
 
 export class YouTubeError extends Error {
-  constructor(
-    message: string,
-    public readonly code: 'INVALID_URL' | 'NO_TRANSCRIPT' | 'TIMEOUT' | 'RATE_LIMIT' | 'NETWORK' | 'UNKNOWN',
-    public readonly retry?: boolean
-  ) {
+  retry: boolean;
+  code: any;
+  
+  private constructor(message: string, retry: boolean = false) {
     super(message);
     this.name = 'YouTubeError';
+    this.retry = retry;
   }
 
-  static invalidUrl(message = 'Invalid YouTube URL'): YouTubeError {
-    return new YouTubeError(message, 'INVALID_URL', false);
+  static invalidUrl(message: string): YouTubeError {
+    return new YouTubeError(message, false);
   }
 
-  static noTranscript(message = 'No transcripts available'): YouTubeError {
-    return new YouTubeError(message, 'NO_TRANSCRIPT', false);
+  static noTranscript(message: string): YouTubeError {
+    return new YouTubeError(message, false);
   }
 
-  static timeout(message = 'Request timed out'): YouTubeError {
-    return new YouTubeError(message, 'TIMEOUT', true);
+  static timeout(message: string): YouTubeError {
+    return new YouTubeError(message, true);
   }
 
-  static rateLimit(message = 'Too many requests'): YouTubeError {
-    return new YouTubeError(message, 'RATE_LIMIT', true);
+  static rateLimit(message: string): YouTubeError {
+    return new YouTubeError(message, true);
   }
 
-  static network(message = 'Network error'): YouTubeError {
-    return new YouTubeError(message, 'NETWORK', true);
+  static network(message: string): YouTubeError {
+    return new YouTubeError(message, true);
   }
 
-  static unknown(message = 'Unknown error'): YouTubeError {
-    return new YouTubeError(message, 'UNKNOWN', false);
+  static unknown(message: string): YouTubeError {
+    return new YouTubeError(message, false);
   }
 }
 

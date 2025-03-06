@@ -209,7 +209,7 @@ export default function Home() {
   return (
     <main className="min-h-screen p-3 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-        <div className="text-center space-y-3 md:space-y-4"></div>
+        <div className="text-center space-y-3 md:space-y-4">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-playfair bg-gradient-luxury text-transparent bg-clip-text animate-gradient">
             KnightyTube
           </h1>
