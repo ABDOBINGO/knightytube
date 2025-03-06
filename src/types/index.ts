@@ -1,3 +1,23 @@
+export interface ResearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+  source: string;
+}
+
+export interface ResearchProgress {
+  source: string;
+  status: 'pending' | 'complete' | 'error';
+  results?: number;
+  error?: string;
+}
+
+export interface ResearchStatus {
+  progress: ResearchProgress[];
+  results: ResearchResult[];
+  searchQueries: string[];
+}
+
 export interface Script {
   id: string;
   title: string;
@@ -8,6 +28,11 @@ export interface Script {
   userId: string;
   createdAt: Date;
   updatedAt: Date;
+  hash?: string;
+  researchData?: {
+    sources: ResearchResult[];
+    searchQueries: string[];
+  };
 }
 
 export interface GenerateScriptRequest {
@@ -36,3 +61,4 @@ export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
+

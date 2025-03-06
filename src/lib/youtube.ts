@@ -1,57 +1,121 @@
+import { YoutubeTranscript } from 'youtube-transcript-api';
 import { google } from 'googleapis';
+import { retry } from '@/utils/retry';
+import { YouTubeError } from '@/lib/errors';
 
 const youtube = google.youtube({
   version: 'v3',
   auth: process.env.YOUTUBE_API_KEY
 });
 
-export async function getVideoTranscript(videoUrl: string): Promise<string> {
+const TRANSCRIPT_TIMEOUT = 30000; // 30 seconds timeout
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
+
+export async function getVideoTranscript(videoUrl: string, onProgress?: (status: string) => void): Promise<string> {
   try {
-    // Extract video ID from URL
+    onProgress?.('Extracting video ID...');
     const videoId = extractVideoId(videoUrl);
     if (!videoId) {
-      throw new Error('Invalid YouTube URL');
+      throw YouTubeError.invalidUrl('Please enter a valid YouTube video URL.');
     }
 
-    // Get video captions
-    const captionsResponse = await youtube.captions.list({
-      part: ['snippet'],
-      videoId: videoId
-    });
-
-    const captions = captionsResponse.data.items;
-    if (!captions || captions.length === 0) {
-      throw new Error('No captions found for this video');
-    }
-
-    // Get the first available caption track (usually auto-generated)
-    const captionId = captions[0].id;
+    onProgress?.('Fetching video transcript...');
     
-    // Download caption track
-    const transcriptResponse = await youtube.captions.download({
-      id: captionId!
-    });
+    const fetchWithTimeout = async () => {
+      const transcriptPromise = YoutubeTranscript.fetchTranscript(videoId);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(YouTubeError.timeout('Transcript fetch timed out. Please try again.'));
+        }, TRANSCRIPT_TIMEOUT);
+      });
 
-    // Process and clean up the transcript
-    let transcript = transcriptResponse.data as string;
-    transcript = cleanTranscript(transcript);
+      try {
+        return await Promise.race([transcriptPromise, timeoutPromise]);
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes('Could not find any transcripts')) {
+            throw YouTubeError.noTranscript('No transcripts available for this video. The creator may need to enable captions.');
+          }
+          if (error.message.includes('Status code: 429')) {
+            throw YouTubeError.rateLimit('Too many requests. Please wait a moment and try again.');
+          }
+          if (error.message.includes('Network Error')) {
+            throw YouTubeError.network('Network error occurred while fetching transcript. Please check your connection.');
+          }
+        }
+        throw error;
+      }
+    };
 
+    const transcripts = await retry(fetchWithTimeout, {
+      maxAttempts: MAX_RETRIES,
+      delayMs: INITIAL_RETRY_DELAY,
+      backoff: true,
+      onRetry: (attempt, error) => {
+        if (error instanceof YouTubeError && error.retry) {
+          onProgress?.(`Retry attempt ${attempt}/${MAX_RETRIES} - ${error.message}`);
+        } else {
+          throw error; // Don't retry if error is not retryable
+        }
+      }
+    }) as any[];
+
+    if (!transcripts || transcripts.length === 0) {
+      throw YouTubeError.noTranscript('No transcripts found for this video');
+    }
+
+    onProgress?.('Processing transcript...');
+    const transcript = transcripts
+      .map(part => part.text)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    onProgress?.('Transcript ready!');
     return transcript;
   } catch (error) {
     console.error('Error fetching transcript:', error);
-    throw new Error('Failed to fetch video transcript');
+    
+    if (error instanceof YouTubeError) {
+      throw error; // Re-throw YouTubeError instances as is
+    }
+
+    // Convert unknown errors to YouTubeError
+    if (error instanceof Error) {
+      if (error.message.includes('timed out')) {
+        throw YouTubeError.timeout('The transcript request timed out after multiple retries. Please try again later.');
+      }
+    }
+    
+    throw YouTubeError.unknown('Failed to fetch video transcript. Please try again later.');
   }
 }
 
 function extractVideoId(url: string): string | null {
   const patterns = [
-    /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i,
-    /^[a-zA-Z0-9_-]{11}$/
+    // Standard watch URLs
+    /youtube\.com\/watch\?(?:.*&)?v=([a-zA-Z0-9_-]{11})(?:&.*)?$/,
+    // Shortened youtu.be URLs
+    /youtu\.be\/([a-zA-Z0-9_-]{11})(?:[?&].*)?$/,
+    // Mobile app share URLs
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})(?:[?&].*)?$/,
+    // Embed URLs
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})(?:[?&].*)?$/,
+    // Mobile URLs
+    /m\.youtube\.com\/watch\?(?:.*&)?v=([a-zA-Z0-9_-]{11})(?:&.*)?$/,
+    // Pure video ID
+    /^([a-zA-Z0-9_-]{11})$/
   ];
 
+  // Normalize the URL by removing protocol and www
+  const normalizedUrl = url.replace(/^(?:https?:\/\/)?(?:www\.)?/, '');
+
   for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
+    const match = normalizedUrl.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
   }
 
   return null;
@@ -88,3 +152,4 @@ export async function getVideoDetails(videoUrl: string) {
     throw error;
   }
 }
+

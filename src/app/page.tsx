@@ -14,6 +14,7 @@ import { useFormInput } from '@/hooks/useFormInput';
 import { validateTopic, validateYoutubeUrl } from '@/utils/validation';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import ResearchSources from '@/components/ResearchSources';
 
 export default function Home() {
   const topicInput = useFormInput({
@@ -46,35 +47,33 @@ export default function Home() {
       setIsGenerating(true);
       setCurrentModel('google/gemini-2.0-pro-exp-02-05:free');
       updateStatus('🤖 Initializing Gemini Pro AI Model...');
-      
-      if (youtubeUrlInput.value) {
-        updateStatus('🎥 Analyzing reference YouTube video for content and style...');
-      }
 
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          topic: topicInput.value, 
-          youtubeUrl: youtubeUrlInput.value 
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to generate script');
-      }
-      
-      updateStatus('✨ Crafting your script with advanced AI techniques...');
-      updateStatus('📝 Structuring content and adding engagement hooks...');
-      const data = await response.json();
-      updateStatus('✅ Script generation complete!');
-      setScript(data.script);
+      // Create EventSource for server-sent events
+      const eventSource = new EventSource(`/api/generate?topic=${encodeURIComponent(topicInput.value)}&youtubeUrl=${encodeURIComponent(youtubeUrlInput.value || '')}`);
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.status) {
+          updateStatus(data.status);
+        } else if (data.script) {
+          setScript(data.script);
+          eventSource.close();
+          setIsGenerating(false);
+        } else if (data.error) {
+          throw new Error(data.error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('EventSource error:', error);
+        eventSource.close();
+        setIsGenerating(false);
+        setError('Failed to generate script. Please try again.');
+      };
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An unexpected error occurred');
       updateStatus('❌ Error encountered during script generation');
       console.error('Error generating script:', error);
-    } finally {
       setIsGenerating(false);
     }
   };
@@ -210,7 +209,7 @@ export default function Home() {
   return (
     <main className="min-h-screen p-3 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-        <div className="text-center space-y-3 md:space-y-4">
+        <div className="text-center space-y-3 md:space-y-4"></div>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-playfair bg-gradient-luxury text-transparent bg-clip-text animate-gradient">
             KnightyTube
           </h1>
@@ -278,65 +277,78 @@ export default function Home() {
             {isGenerating ? (
               <ScriptSkeleton />
             ) : script && (
-              <div className="space-y-4 md:space-y-6 bg-dark-secondary/50 backdrop-blur-sm p-4 md:p-8 rounded-2xl border border-luxury-gold/20 shadow-xl">
-                <div className="flex items-center justify-between gap-4">
-                  <h2 className="text-xl md:text-2xl font-playfair font-semibold text-luxury-gold">
-                    {script.title}
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={shareScript}
-                      className="p-2 hover:bg-luxury-gold/5 rounded-lg transition-colors group relative"
-                      title="Share script"
-                    >
-                      <ShareIcon className="w-5 h-5 text-luxury-gold/70 group-hover:text-luxury-gold" />
-                      <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-dark-secondary/90 rounded whitespace-nowrap">
-                        Share script
-                      </span>
-                    </button>
-                    <button
-                      onClick={copyToClipboard}
-                      className="p-2 hover:bg-luxury-gold/5 rounded-lg transition-colors group relative"
-                      title="Copy script to clipboard (Ctrl+Alt+C)"
-                    >
-                      {isCopied ? (
-                        <ClipboardDocumentCheckIcon className="w-5 h-5 text-green-400" />
-                      ) : (
-                        <ClipboardIcon className="w-5 h-5 text-luxury-gold/70 group-hover:text-luxury-gold" />
-                      )}
-                      <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-dark-secondary/90 rounded whitespace-nowrap">
-                        Copy (Ctrl+Alt+C)
-                      </span>
-                    </button>
+              <div className="space-y-4 md:space-y-6">
+                <div className="bg-dark-secondary/50 backdrop-blur-sm p-4 md:p-8 rounded-2xl border border-luxury-gold/20 shadow-xl">
+                  <div className="flex items-center justify-between gap-4">
+                    <h2 className="text-xl md:text-2xl font-playfair font-semibold text-luxury-gold">
+                      {script.title}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={shareScript}
+                        className="p-2 hover:bg-luxury-gold/5 rounded-lg transition-colors group relative"
+                        title="Share script"
+                      >
+                        <ShareIcon className="w-5 h-5 text-luxury-gold/70 group-hover:text-luxury-gold" />
+                        <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-dark-secondary/90 rounded whitespace-nowrap">
+                          Share script
+                        </span>
+                      </button>
+                      <button
+                        onClick={copyToClipboard}
+                        className="p-2 hover:bg-luxury-gold/5 rounded-lg transition-colors group relative"
+                        title="Copy script to clipboard (Ctrl+Alt+C)"
+                      >
+                        {isCopied ? (
+                          <ClipboardDocumentCheckIcon className="w-5 h-5 text-green-400" />
+                        ) : (
+                          <ClipboardIcon className="w-5 h-5 text-luxury-gold/70 group-hover:text-luxury-gold" />
+                        )}
+                        <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-dark-secondary/90 rounded whitespace-nowrap">
+                          Copy (Ctrl+Alt+C)
+                        </span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="prose prose-invert max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans text-base md:text-lg leading-relaxed bg-dark/50 p-4 md:p-6 rounded-xl">
-                    {script.enhancedScript || script.content}
-                  </pre>
+                  
+                  <div className="prose prose-invert max-w-none">
+                    <pre className="whitespace-pre-wrap font-sans text-base md:text-lg leading-relaxed bg-dark/50 p-4 md:p-6 rounded-xl mt-4">
+                      {script.enhancedScript || script.content}
+                    </pre>
+                  </div>
+
+                  {!script.enhancedScript && (
+                    <button
+                      onClick={enhanceScript}
+                      disabled={isEnhancing}
+                      className="w-full mt-6 bg-gradient-to-r from-luxury-purple to-luxury-gold p-3 md:p-4 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-white shadow-lg transition-all duration-200 hover:shadow-luxury-purple/20 hover:scale-[1.02] active:scale-[0.98]"
+                      title="Enhance script (Ctrl+E)"
+                    >
+                      {isEnhancing ? (
+                        <>
+                          <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                          Enhancing Your Script
+                          <LoadingDots />
+                        </>
+                      ) : (
+                        <>
+                          <SparklesIcon className="w-5 h-5" />
+                          Enhance with Deepseek AI
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
-                {!script.enhancedScript && (
-                  <button
-                    onClick={enhanceScript}
-                    disabled={isEnhancing}
-                    className="w-full bg-gradient-to-r from-luxury-purple to-luxury-gold p-3 md:p-4 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-white shadow-lg transition-all duration-200 hover:shadow-luxury-purple/20 hover:scale-[1.02] active:scale-[0.98]"
-                    title="Enhance script (Ctrl+E)"
-                  >
-                    {isEnhancing ? (
-                      <>
-                        <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                        Enhancing Your Script
-                        <LoadingDots />
-                      </>
-                    ) : (
-                      <>
-                        <SparklesIcon className="w-5 h-5" />
-                        Enhance with Deepseek AI
-                      </>
-                    )}
-                  </button>
+                {script.researchData && (
+                  <ResearchSources 
+                    sources={script.researchData.sources}
+                    searchQueries={
+                      typeof script.researchData.searchQueries === 'string' 
+                        ? JSON.parse(script.researchData.searchQueries)
+                        : script.researchData.searchQueries
+                    }
+                  />
                 )}
               </div>
             )}

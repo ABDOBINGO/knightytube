@@ -5,9 +5,9 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-const prismaClientOptions = {
+const prismaClientOptions: Prisma.PrismaClientOptions = {
   log: ['error', 'warn'],
-  errorFormat: 'pretty',
+  errorFormat: 'pretty' as const,
 };
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient(prismaClientOptions);
@@ -15,7 +15,7 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient(prismaClientOpt
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
-prisma.$use(async (params: Prisma.MiddlewareParams, next: Prisma.Middleware) => {
+prisma.$use(async (params: Prisma.MiddlewareParams, next: (params: Prisma.MiddlewareParams) => Promise<any>) => {
   const before = Date.now();
   const result = await next(params);
   const after = Date.now();

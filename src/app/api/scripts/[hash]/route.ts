@@ -28,6 +28,20 @@ export async function GET(
         youtubeUrl: true,
         createdAt: true,
         updatedAt: true,
+        researchData: {
+          select: {
+            searchQueries: true,
+            sources: {
+              select: {
+                id: true,
+                title: true,
+                url: true,
+                snippet: true,
+                source: true
+              }
+            }
+          }
+        }
       },
     });
 

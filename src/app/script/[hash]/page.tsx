@@ -6,6 +6,7 @@ import { Script } from '@/types';
 import Link from 'next/link';
 import ErrorMessage from '@/components/ErrorMessage';
 import ScriptSkeleton from '@/components/ScriptSkeleton';
+import ResearchSources from '@/components/ResearchSources';
 import Toast from '@/components/Toast';
 
 export default function ScriptPage({
@@ -27,6 +28,12 @@ export default function ScriptPage({
           throw new Error(data.error || 'Failed to load script');
         }
         const { script } = await response.json();
+        
+        // Parse searchQueries from JSON string if it exists
+        if (script.researchData?.searchQueries) {
+          script.researchData.searchQueries = JSON.parse(script.researchData.searchQueries);
+        }
+        
         setScript(script);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load script');
@@ -107,6 +114,13 @@ export default function ScriptPage({
             </pre>
           </div>
         </div>
+
+        {script.researchData && (
+          <ResearchSources 
+            sources={script.researchData.sources}
+            searchQueries={script.researchData.searchQueries}
+          />
+        )}
       </div>
       <Toast message="Share link copied to clipboard!" isVisible={isToastVisible} />
     </main>

@@ -14,26 +14,51 @@ generator client {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  scripts       Script[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  scripts   Script[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Script {
-  id            String    @id @default(cuid())
-  title         String
-  content       String    
-  youtubeUrl    String?
-  transcript    String?   
-  enhancedScript String?  
-  userId        String
-  user          User      @relation(fields: [userId], references: [id])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  hash          String    @unique
+  id             String           @id @default(cuid())
+  hash           String          @unique
+  title          String
+  content        String
+  enhancedScript String?
+  youtubeUrl     String?
+  transcript     String?
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  researchData   ResearchData?
 
   @@index([hash])
+}
+
+model ResearchData {
+  id           String           @id @default(cuid())
+  scriptId     String          @unique
+  script       Script          @relation(fields: [scriptId], references: [id])
+  sources      ResearchSource[]
+  searchQueries String         // Store as JSON string
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model ResearchSource {
+  id           String        @id @default(cuid())
+  title        String
+  url          String?
+  snippet      String
+  source       String
+  researchId   String
+  researchData ResearchData  @relation(fields: [researchId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([researchId])
 }
