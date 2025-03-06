@@ -1,3 +1,5 @@
+'use client';
+
 export default function ScriptSkeleton() {
   return (
     <div className="space-y-6 bg-dark-secondary/50 backdrop-blur-sm p-8 rounded-2xl border border-luxury-gold/20 shadow-xl animate-pulse">

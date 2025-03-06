@@ -1,14 +1,21 @@
 'use client';
 
-import { BeakerIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { BeakerIcon, SparklesIcon, KeyIcon } from '@heroicons/react/24/outline';
 import { useEffect, useRef } from 'react';
 
 interface AIStatusProps {
   messages: string[];
   currentModel: string;
+  showShortcuts?: boolean;
 }
 
-export default function AIStatus({ messages, currentModel }: AIStatusProps) {
+const KEYBOARD_SHORTCUTS = [
+  { key: 'Ctrl + Enter', description: 'Generate script' },
+  { key: 'Ctrl + E', description: 'Enhance script' },
+  { key: 'Ctrl + Alt + C', description: 'Copy to clipboard' },
+];
+
+export default function AIStatus({ messages, currentModel, showShortcuts = true }: AIStatusProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,6 +44,25 @@ export default function AIStatus({ messages, currentModel }: AIStatusProps) {
             {currentModel.split('/')[1]?.split(':')[0] || currentModel}
           </span>
         </div>
+        
+        {showShortcuts && messages.length === 0 && (
+          <div className="space-y-3 mb-4 p-3 bg-dark/30 rounded-lg border border-luxury-gold/10">
+            <div className="flex items-center gap-2 text-gray-300">
+              <KeyIcon className="w-4 h-4 text-luxury-gold" />
+              <span className="text-sm font-medium">Keyboard Shortcuts</span>
+            </div>
+            <div className="space-y-2">
+              {KEYBOARD_SHORTCUTS.map(({ key, description }, index) => (
+                <div key={key} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">{description}</span>
+                  <kbd className="px-2 py-1 bg-dark rounded text-luxury-gold border border-luxury-gold/20 text-xs">
+                    {key}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
           {messages.map((message, index) => (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { FormEvent } from 'react';
 import { ArrowPathIcon, SparklesIcon, BeakerIcon, DocumentTextIcon, VideoCameraIcon, ClipboardIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import type { Script } from '@/types';
 import AIStatus from '@/components/AIStatus';
@@ -8,10 +8,21 @@ import ModelInfo from '@/components/ModelInfo';
 import LoadingDots from '@/components/LoadingDots';
 import ScriptSkeleton from '@/components/ScriptSkeleton';
 import Toast from '@/components/Toast';
+import ErrorMessage from '@/components/ErrorMessage';
+import { useFormInput } from '@/hooks/useFormInput';
+import { validateTopic, validateYoutubeUrl } from '@/utils/validation';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 export default function Home() {
-  const [topic, setTopic] = useState('');
-  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const topicInput = useFormInput({
+    validate: validateTopic,
+    autoFocus: true,
+  });
+  const youtubeUrlInput = useFormInput({
+    validate: validateYoutubeUrl,
+  });
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [script, setScript] = useState<Script | null>(null);
@@ -32,14 +43,17 @@ export default function Home() {
       setCurrentModel('google/gemini-2.0-pro-exp-02-05:free');
       updateStatus('🤖 Initializing Gemini Pro AI Model...');
       
-      if (youtubeUrl) {
+      if (youtubeUrlInput.value) {
         updateStatus('🎥 Analyzing reference YouTube video for content and style...');
       }
 
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, youtubeUrl }),
+        body: JSON.stringify({ 
+          topic: topicInput.value, 
+          youtubeUrl: youtubeUrlInput.value 
+        }),
       });
       
       if (!response.ok) {
@@ -107,6 +121,70 @@ export default function Home() {
     }
   };
 
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+
+    const topicError = validateTopic(topicInput.value);
+    const urlError = validateYoutubeUrl(youtubeUrlInput.value);
+
+    if (topicError) {
+      setError(topicError);
+      return;
+    }
+
+    if (urlError) {
+      setError(urlError);
+      return;
+    }
+
+    await generateScript();
+  };
+
+  useKeyboardShortcuts([
+    {
+      key: 'Enter',
+      ctrlKey: true,
+      handler: (e) => {
+        if (!isGenerating && topicInput.value && !topicInput.error && !youtubeUrlInput.error) {
+          e.preventDefault();
+          generateScript();
+        }
+      },
+      preventDefault: true,
+    },
+    {
+      key: 'c',
+      ctrlKey: true,
+      altKey: true,
+      handler: (e) => {
+        if (script) {
+          e.preventDefault();
+          copyToClipboard();
+        }
+      },
+      preventDefault: true,
+    },
+    {
+      key: 'e',
+      ctrlKey: true,
+      handler: (e) => {
+        if (script && !script.enhancedScript && !isEnhancing) {
+          e.preventDefault();
+          enhanceScript();
+        }
+      },
+      preventDefault: true,
+    },
+  ]);
+
+  // Track if we have unsaved changes
+  const hasUnsavedChanges = Boolean(
+    (topicInput.value || youtubeUrlInput.value) && !script
+  );
+
+  // Use the unsaved changes hook
+  useUnsavedChanges(hasUnsavedChanges);
+
   return (
     <main className="min-h-screen p-3 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
@@ -120,19 +198,19 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
           {/* Main Input Form */}
           <div className="lg:col-span-2 space-y-4 md:space-y-6">
-            <div className="space-y-4 md:space-y-6 bg-dark-secondary/50 backdrop-blur-sm p-4 md:p-8 rounded-2xl border border-luxury-gold/20 shadow-xl">
+            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 bg-dark-secondary/50 backdrop-blur-sm p-4 md:p-8 rounded-2xl border border-luxury-gold/20 shadow-xl">
               <div>
                 <label className="flex items-center gap-2 text-lg font-medium text-gray-200 mb-2">
                   <DocumentTextIcon className="w-5 h-5 text-luxury-gold" />
                   Video Topic *
                 </label>
                 <input
+                  {...topicInput.inputProps}
                   type="text"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
                   className="w-full p-3 md:p-4 bg-dark border border-luxury-gold/20 rounded-xl focus:ring-2 focus:ring-luxury-gold/50 focus:border-transparent text-white placeholder-gray-400"
                   placeholder="Enter your video topic..."
                 />
+                {topicInput.error && <ErrorMessage message={topicInput.error} className="mt-2" />}
               </div>
 
               <div>
@@ -141,25 +219,24 @@ export default function Home() {
                   Reference YouTube Video
                 </label>
                 <input
+                  {...youtubeUrlInput.inputProps}
                   type="text"
-                  value={youtubeUrl}
-                  onChange={(e) => setYoutubeUrl(e.target.value)}
                   className="w-full p-3 md:p-4 bg-dark border border-luxury-gold/20 rounded-xl focus:ring-2 focus:ring-luxury-gold/50 focus:border-transparent text-white placeholder-gray-400"
                   placeholder="Paste YouTube URL to use as reference..."
                 />
                 <p className="mt-2 text-sm text-gray-400">Optional: Add a video URL to base your script on its content</p>
+                {youtubeUrlInput.error && <ErrorMessage message={youtubeUrlInput.error} className="mt-2" />}
               </div>
 
-              {error && (
-                <div className="p-4 bg-red-900/20 border border-red-500/20 rounded-xl">
-                  <p className="text-sm text-red-400">{error}</p>
-                </div>
+              {error && !topicInput.error && !youtubeUrlInput.error && (
+                <ErrorMessage message={error} />
               )}
 
               <button
-                onClick={generateScript}
-                disabled={!topic || isGenerating}
+                type="submit"
+                disabled={!topicInput.value || isGenerating || !!topicInput.error || !!youtubeUrlInput.error}
                 className="w-full bg-gradient-luxury p-3 md:p-4 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-white shadow-lg transition-all duration-200 hover:shadow-luxury-gold/20 hover:scale-[1.02] active:scale-[0.98]"
+                title="Generate script (Ctrl+Enter)"
               >
                 {isGenerating ? (
                   <>
@@ -174,7 +251,7 @@ export default function Home() {
                   </>
                 )}
               </button>
-            </div>
+            </form>
 
             {isGenerating ? (
               <ScriptSkeleton />
@@ -184,14 +261,17 @@ export default function Home() {
                   <h2 className="text-xl md:text-2xl font-playfair font-semibold text-luxury-gold">{script.title}</h2>
                   <button
                     onClick={copyToClipboard}
-                    className="p-2 hover:bg-luxury-gold/5 rounded-lg transition-colors"
-                    title="Copy script to clipboard"
+                    className="p-2 hover:bg-luxury-gold/5 rounded-lg transition-colors group relative"
+                    title="Copy script to clipboard (Ctrl+Alt+C)"
                   >
                     {isCopied ? (
                       <ClipboardDocumentCheckIcon className="w-5 h-5 text-green-400" />
                     ) : (
-                      <ClipboardIcon className="w-5 h-5 text-luxury-gold/70 hover:text-luxury-gold" />
+                      <ClipboardIcon className="w-5 h-5 text-luxury-gold/70 group-hover:text-luxury-gold" />
                     )}
+                    <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-dark-secondary/90 rounded whitespace-nowrap">
+                      Copy (Ctrl+Alt+C)
+                    </span>
                   </button>
                 </div>
                 <div className="prose prose-invert max-w-none">
@@ -205,6 +285,7 @@ export default function Home() {
                     onClick={enhanceScript}
                     disabled={isEnhancing}
                     className="w-full bg-gradient-to-r from-luxury-purple to-luxury-gold p-3 md:p-4 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-white shadow-lg transition-all duration-200 hover:shadow-luxury-purple/20 hover:scale-[1.02] active:scale-[0.98]"
+                    title="Enhance script (Ctrl+E)"
                   >
                     {isEnhancing ? (
                       <>

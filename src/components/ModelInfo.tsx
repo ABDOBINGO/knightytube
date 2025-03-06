@@ -6,6 +6,8 @@ const models = [
   {
     name: 'Gemini Pro',
     id: 'google/gemini-2.0-pro-exp-02-05:free',
+    description: 'Primary script generation model with advanced storytelling capabilities',
+    features: ['Structured Content', 'Natural Language', 'SEO Optimization'],
     icon: BeakerIcon,
   },
   {

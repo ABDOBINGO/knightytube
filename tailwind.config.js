@@ -23,6 +23,7 @@ module.exports = {
       animation: {
         'gradient': 'gradient 8s linear infinite',
         'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'loading-dot': 'loading-dot 1s ease-in-out infinite',
       },
       keyframes: {
         gradient: {
@@ -35,28 +36,39 @@ module.exports = {
             'background-position': 'right center',
           },
         },
+        'loading-dot': {
+          '0%, 100%': {
+            opacity: '0.2',
+            transform: 'scale(0.8)',
+          },
+          '50%': {
+            opacity: '0.8',
+            transform: 'scale(1)',
+          },
+        },
       },
       backgroundImage: {
         'gradient-luxury': 'linear-gradient(45deg, #2563EB, #800080, #FFD700)',
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
       },
-    typography: {
-      DEFAULT: {
-        css: {
-          color: 'rgb(209 213 219)',
-          a: {
-            color: '#FFD700',
-            '&:hover': {
-              color: '#C0C0C0',
+      typography: (theme) => ({
+        DEFAULT: {
+          css: {
+            color: theme('colors.gray.300'),
+            a: {
+              color: theme('colors.luxury.gold'),
+              '&:hover': {
+                color: theme('colors.luxury.silver'),
+              },
             },
           },
         },
-      },
+      }),
     },
   },
   plugins: [
     require('daisyui'),
-    require('@tailwindcss/typography')
+    require('@tailwindcss/typography'),
   ],
   daisyui: {
     themes: [
